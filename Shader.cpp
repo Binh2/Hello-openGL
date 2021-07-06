@@ -1,8 +1,11 @@
+#include "Shader.h"
 #include <fstream>
 #include <sstream>
 #include <iostream>
 #include <glad/glad.h>
-#include "Shader.h"
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
 Shader::Shader(const char* vertexPath, const char* fragmentPath)
 {
     std::string vertexCode;

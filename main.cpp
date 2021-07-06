@@ -8,6 +8,7 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include "Shader.h"
+#include "Camera.h"
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 using namespace std;
@@ -20,13 +21,10 @@ void processInput(GLFWwindow* window);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 
-float cameraSpeed;
-glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 3.0f);
-glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
-glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
 float fov = 45.0f;
 bool firstMouse = true;
 float yaw, pitch;
+Camera camera;
 
 glm::vec3 direction;
 
@@ -57,6 +55,7 @@ int main() {
     glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
 
     Shader shader("vertexShader.txt", "fragmentShader.txt");
+    
 
     float vertices[] = {
         -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
@@ -177,31 +176,6 @@ int main() {
     glUniform1i(glGetUniformLocation(shader.ID, "texture0"), 0); // set it manually
     shader.setInt("texture1", 1); // or with shader class
 
-    glm::mat4 modelMatrix = glm::mat4(1.0f);
-    modelMatrix = glm::rotate(modelMatrix, glm::radians(-55.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-
-    //glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 3.0f);
-    glm::vec3 cameraTarget = glm::vec3(0.0f, 0.0f, 0.0f);
-    glm::vec3 cameraDirection = glm::normalize(cameraPos - cameraTarget);
-
-    glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f);
-    glm::vec3 cameraRight = glm::normalize(glm::cross(up, cameraDirection));
-
-    glm::vec3 cameraUp = glm::cross(cameraDirection, cameraRight);
-
-    glm::mat4 view;
-    view = glm::lookAt(glm::vec3(0.0f, 0.0f, 3.0f),
-        glm::vec3(0.0f, 0.0f, 0.0f),
-        glm::vec3(0.0f, 1.0f, 0.0f));
-
-    glm::mat4 viewMatrix = glm::mat4(1.0f);
-    viewMatrix = glm::translate(viewMatrix, glm::vec3(0.0f, 0.0f, -3.0f));
-
-    shader.setMat4("modelMatrix", modelMatrix);
-    shader.setMat4("viewMatrix", viewMatrix);
-
-    
-
     float deltaTime = 0.0f;	// Time between current frame and last frame
     float lastFrame = 0.0f; // Time of last frame
 
@@ -216,28 +190,20 @@ int main() {
         float currentFrame = (float)glfwGetTime();
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
-
-        cameraSpeed = 2.5f * deltaTime;
+        float cameraSpeed = 2.5f * deltaTime;
+        camera.setSpeed(cameraSpeed);
 
         processInput(window);
+        camera.proccessInput(window);
 
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         //shader.use();
 
-        view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
-        
+        glm::mat4 view = camera.getViewMatrix();
         shader.setMat4("viewMatrix", view);
-
         
-        
-        /*
-        glm::mat4 modelMatrix = glm::mat4(1.0f);
-        modelMatrix = glm::rotate(modelMatrix, glm::radians(-55.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-        modelMatrix = zRotationMatrix * yRotationMatrix * xRotationMatrix * modelMatrix;
-        shader.setMat4("modelMatrix", modelMatrix);
-        */
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, texture0);
         glActiveTexture(GL_TEXTURE1);
@@ -257,8 +223,8 @@ int main() {
             //glDrawElements(GL_TRIANGLES, sizeof(indices) / sizeof(unsigned), GL_UNSIGNED_INT, 0);
         }
 
-        glm::mat4 projectionMatrix = glm::perspective(glm::radians(fov), SCR_WIDTH * 1.0f / SCR_HEIGHT, 0.1f, 100.0f);
-        shader.setMat4("projectionMatrix", projectionMatrix);
+        glm::mat4 projection = glm::perspective(glm::radians(fov), SCR_WIDTH * 1.0f / SCR_HEIGHT, 0.1f, 100.0f);
+        shader.setMat4("projectionMatrix", projection);
 
         glBindVertexArray(0);
 
@@ -276,16 +242,6 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 void processInput(GLFWwindow* window) {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
-
-    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-        cameraPos += cameraSpeed * cameraFront;
-    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-        cameraPos -= cameraSpeed * cameraFront;
-    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-        cameraPos -= glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
-    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-        cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
-    
 }
 void mouse_callback(GLFWwindow* window, double xpos, double ypos) 
 {
@@ -322,7 +278,7 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos)
     direction.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
     direction.y = sin(glm::radians(pitch));
     direction.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
-    cameraFront = glm::normalize(direction);
+    camera.setFront(glm::normalize(direction));
 }
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 {
