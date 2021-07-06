@@ -17,11 +17,18 @@ const unsigned int SCR_HEIGHT = 600;
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow* window);
+void mouse_callback(GLFWwindow* window, double xpos, double ypos);
+void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 
-float mixValue = 0.2;
-float xRotationAngle = 0;
-float yRotationAngle = 0;
-float zRotationAngle = 0;
+float cameraSpeed;
+glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 3.0f);
+glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
+glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
+float fov = 45.0f;
+bool firstMouse = true;
+float yaw, pitch;
+
+glm::vec3 direction;
 
 int main() {
     glfwInit();
@@ -170,48 +177,61 @@ int main() {
     glUniform1i(glGetUniformLocation(shader.ID, "texture0"), 0); // set it manually
     shader.setInt("texture1", 1); // or with shader class
 
-    glm::mat4 trans = glm::mat4(1.0f);
-    trans = glm::rotate(trans, glm::radians(90.0f), glm::vec3(0.0, 0.0, 1.0));
-    //trans = glm::scale(trans, glm::vec3(0.5, 0.5, 0.5));
-
-    glUniformMatrix4fv(glGetUniformLocation(shader.ID, "trans"), 1, GL_FALSE, glm::value_ptr(trans));
-
     glm::mat4 modelMatrix = glm::mat4(1.0f);
     modelMatrix = glm::rotate(modelMatrix, glm::radians(-55.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+
+    //glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 3.0f);
+    glm::vec3 cameraTarget = glm::vec3(0.0f, 0.0f, 0.0f);
+    glm::vec3 cameraDirection = glm::normalize(cameraPos - cameraTarget);
+
+    glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f);
+    glm::vec3 cameraRight = glm::normalize(glm::cross(up, cameraDirection));
+
+    glm::vec3 cameraUp = glm::cross(cameraDirection, cameraRight);
+
+    glm::mat4 view;
+    view = glm::lookAt(glm::vec3(0.0f, 0.0f, 3.0f),
+        glm::vec3(0.0f, 0.0f, 0.0f),
+        glm::vec3(0.0f, 1.0f, 0.0f));
 
     glm::mat4 viewMatrix = glm::mat4(1.0f);
     viewMatrix = glm::translate(viewMatrix, glm::vec3(0.0f, 0.0f, -3.0f));
 
-    glm::mat4 projectionMatrix = glm::perspective(glm::radians(45.0f), SCR_WIDTH * 1.0f / SCR_HEIGHT, 0.1f, 100.0f);
-
     shader.setMat4("modelMatrix", modelMatrix);
     shader.setMat4("viewMatrix", viewMatrix);
-    shader.setMat4("projectionMatrix", projectionMatrix);
+
+    
+
+    float deltaTime = 0.0f;	// Time between current frame and last frame
+    float lastFrame = 0.0f; // Time of last frame
 
     glEnable(GL_DEPTH_TEST);
     //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    glfwSetCursorPosCallback(window, mouse_callback);
+
+    glfwSetScrollCallback(window, scroll_callback);
     while (!glfwWindowShouldClose(window))
     {
+        float currentFrame = (float)glfwGetTime();
+        deltaTime = currentFrame - lastFrame;
+        lastFrame = currentFrame;
+
+        cameraSpeed = 2.5f * deltaTime;
+
         processInput(window);
 
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        shader.use();
+        //shader.use();
 
-        glUniform1f(glGetUniformLocation(shader.ID, "mixValue"), mixValue);
-
-        glm::mat4 xRotationMatrix = glm::mat4(1.0);
-        xRotationMatrix = glm::rotate(xRotationMatrix, glm::radians(xRotationAngle), glm::vec3(1, 0, 0));
-        shader.setMat4("xRotationMatrix", xRotationMatrix);
+        view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
         
-        glm::mat4 yRotationMatrix = glm::mat4(1.0);
-        yRotationMatrix = glm::rotate(yRotationMatrix, glm::radians(yRotationAngle), glm::vec3(0, 1, 0));
-        shader.setMat4("yRotationMatrix", yRotationMatrix);
+        shader.setMat4("viewMatrix", view);
 
-        glm::mat4 zRotationMatrix = glm::mat4(1.0);
-        zRotationMatrix = glm::rotate(zRotationMatrix, glm::radians(zRotationAngle), glm::vec3(0, 0, 1));
-        shader.setMat4("zRotationMatrix", zRotationMatrix);
+        
+        
         /*
         glm::mat4 modelMatrix = glm::mat4(1.0f);
         modelMatrix = glm::rotate(modelMatrix, glm::radians(-55.0f), glm::vec3(1.0f, 0.0f, 0.0f));
@@ -224,18 +244,21 @@ int main() {
         glBindTexture(GL_TEXTURE_2D, texture1);
         glBindVertexArray(VAO);
         for (unsigned i = 0; i < 10; i++) {
-            glm::mat4 modelMatrix = glm::mat4(1.0f);
-            
-            modelMatrix = glm::translate(modelMatrix, cubePositions[i]);
-            modelMatrix = zRotationMatrix * yRotationMatrix * xRotationMatrix * modelMatrix;
+            glm::mat4 model = glm::mat4(1.0f);
+            model = glm::translate(model, cubePositions[i]);
             float angle = 20.0f * i;
-            modelMatrix = glm::rotate(modelMatrix, glm::radians(angle), glm::vec3(1.0f, 0.3f, 0.5f));
+            if (i % 3 == 0)  // every 3rd iteration (including the first) we set the angle using GLFW's time function.
+                angle = (float)glfwGetTime() * 25.0f;
+            model = glm::rotate(model, glm::radians(angle), glm::vec3(1.0f, 0.3f, 0.5f));
             
-            shader.setMat4("modelMatrix", modelMatrix);
+            shader.setMat4("modelMatrix", model);
 
             glDrawArrays(GL_TRIANGLES, 0, 36);
             //glDrawElements(GL_TRIANGLES, sizeof(indices) / sizeof(unsigned), GL_UNSIGNED_INT, 0);
         }
+
+        glm::mat4 projectionMatrix = glm::perspective(glm::radians(fov), SCR_WIDTH * 1.0f / SCR_HEIGHT, 0.1f, 100.0f);
+        shader.setMat4("projectionMatrix", projectionMatrix);
 
         glBindVertexArray(0);
 
@@ -254,30 +277,58 @@ void processInput(GLFWwindow* window) {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
 
-    if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) 
-        if (mixValue < 1)
-            mixValue += 0.001;
-        
-    if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS)
-        if (mixValue > 0)
-            mixValue -= 0.001;
-
-    float angleChange = 0.1;
-    if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS) 
-        zRotationAngle += angleChange;
-
-    if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS)
-        zRotationAngle -= angleChange;
-
-    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-        yRotationAngle += angleChange;
-
-    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-        yRotationAngle -= angleChange;
-
-    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-        xRotationAngle += angleChange;
-
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-        xRotationAngle -= angleChange;
+        cameraPos += cameraSpeed * cameraFront;
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+        cameraPos -= cameraSpeed * cameraFront;
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+        cameraPos -= glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
+    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+        cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
+    
+}
+void mouse_callback(GLFWwindow* window, double xpos, double ypos) 
+{
+    yaw = -90.0f;
+    pitch = 0.0f;
+
+    float lastX = SCR_WIDTH / 2.0, lastY = SCR_HEIGHT / 2.0;
+
+    if (firstMouse)
+    {
+        lastX = xpos;
+        lastY = ypos;
+        firstMouse = false;
+    }
+
+    float xoffset = xpos - lastX;
+    float yoffset = lastY - ypos;
+    lastX = xpos;
+    lastY = ypos;
+
+    float sensitivity = 0.1f;
+    xoffset *= sensitivity;
+    yoffset *= sensitivity;
+
+    yaw += xoffset;
+    pitch += yoffset;
+
+    if (pitch > 89.0f)
+        pitch = 89.0f;
+    if (pitch < -89.0f)
+        pitch = -89.0f;
+
+    glm::vec3 direction;
+    direction.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
+    direction.y = sin(glm::radians(pitch));
+    direction.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
+    cameraFront = glm::normalize(direction);
+}
+void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
+{
+    fov -= (float)yoffset;
+    if (fov < 1.0f)
+        fov = 1.0f;
+    if (fov > 70.0f)
+        fov = 70.0f;
 }

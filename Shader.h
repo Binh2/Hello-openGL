@@ -12,10 +12,10 @@ public:
     unsigned int ID;
     Shader(const char* vertexPath, const char* fragmentPath);
     void use();
-    void setBool(const std::string&, bool) const;
-    void setInt(const std::string&, int) const;
-    void setFloat(const std::string&, float) const;
-    void setMat4(const std::string&, glm::mat4&) const;
+    void setBool(const std::string& uniformName, bool value) const;
+    void setInt(const std::string& uniformName, int value) const;
+    void setFloat(const std::string& uniformName, float value) const;
+    void setMat4(const std::string& uniformName, glm::mat4& matrix) const;
 };
 
 #endif
