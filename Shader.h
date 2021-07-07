@@ -14,6 +14,8 @@ public:
     void setInt(const std::string& uniformName, int value) const;
     void setFloat(const std::string& uniformName, float value) const;
     void setMat4(const std::string& uniformName, glm::mat4& matrix) const;
+    void setVec3(const std::string& uniformName, glm::vec3& vec) const;
+    void setVec3(const std::string& uniformName, float value1, float value2, float value3) const;
 };
 
 #endif

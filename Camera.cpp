@@ -3,7 +3,6 @@
 #include <glm/gtc/type_ptr.hpp>
 
 Camera::Camera() {
-	float speed;
 	pos = glm::vec3(0.0f, 0.0f, 3.0f);
 	front = glm::vec3(0.0f, 0.0f, -1.0f);
 	up = glm::vec3(0.0f, 1.0f, 0.0f);
@@ -13,6 +12,7 @@ Camera::Camera() {
     right = glm::normalize(glm::cross(glm::vec3(0.0f, 1.0f, 0.0f), direction));
 
     up = glm::cross(direction, right);
+    zoom = 45.0f;
 }
 void Camera::proccessInput(GLFWwindow* window) {
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)

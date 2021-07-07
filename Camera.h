@@ -1,5 +1,6 @@
 #ifndef CAMERA_H
 #define CAMERA_H
+#define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 
@@ -9,6 +10,7 @@ private:
 	glm::vec3 pos, front, up, right;
 
 public:
+	float zoom;
 	Camera();
 	void proccessInput(GLFWwindow* window);
 	void setSpeed(float speed);
