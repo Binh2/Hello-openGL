@@ -7,10 +7,9 @@
 class Camera {
 private:
 	float speed;
-	glm::vec3 pos, front, up, right;
-
 public:
 	float zoom;
+	glm::vec3 pos, front, up, right;
 	Camera();
 	void proccessInput(GLFWwindow* window);
 	void setSpeed(float speed);

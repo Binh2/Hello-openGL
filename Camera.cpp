@@ -23,6 +23,10 @@ void Camera::proccessInput(GLFWwindow* window) {
         pos -= glm::normalize(glm::cross(front, up)) * speed;
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
         pos += glm::normalize(glm::cross(front, up)) * speed;
+    if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
+        pos += speed * up;
+    if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_RIGHT_SHIFT) == GLFW_PRESS)
+        pos -= speed * up;
 }
 void Camera::setSpeed(float speed) 
 {
