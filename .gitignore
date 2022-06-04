@@ -2,5 +2,5 @@
 **/x64
 /glm
 Project1.*
-/.vs
+.vs
 /stb_image.h

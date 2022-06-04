@@ -1,5 +1,6 @@
 #include "Shader.h"
 #include "Camera.h"
+#include "Model.h"
 
 #include <iostream>
 #include <sstream>
@@ -10,6 +11,10 @@
 
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+
+#include <assimp/Importer.hpp>
+#include <assimp/scene.h>
+#include <assimp/postprocess.h>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
@@ -123,6 +128,8 @@ int main() {
 
     Shader lightingShader(".vs", "lighting.fs");
     Shader lightCubeShader(".vs", "lightCube.fs");    
+
+    Model model("backpack/backpack.obj");
     
     unsigned int VBO, cubeVAO;
     glGenVertexArrays(1, &cubeVAO);
@@ -173,6 +180,8 @@ int main() {
         glBindTexture(GL_TEXTURE_2D, diffuseMap);
         glActiveTexture(GL_TEXTURE1);
         glBindTexture(GL_TEXTURE_2D, specularMap);
+
+        model.Draw(lightingShader);
 
         float currentFrame = (float)glfwGetTime();
         deltaTime = currentFrame - lastFrame;
